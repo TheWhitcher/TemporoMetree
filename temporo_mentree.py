@@ -109,6 +109,7 @@ is_flashing = False
 max_heat = 30
 current_heat = 0
 light_status = "Off"
+stop_flag = False
 
 def init():
     ADC0832_1.setup()
@@ -154,7 +155,7 @@ def thermistorLogic():
 def photoresistorLogic():
     global is_flashing
 
-    res = ADC0832_1.getADC(0)
+    res = ADC0832_2.getADC(1)
     vol = 3.3/255 * res
 
     if (vol <= (3.3/2)):
@@ -173,19 +174,21 @@ def alarm_status(channel):
 
 def sound_the_alarm():
     global is_activate
-    while True:
+    while not stop_flag:
         if is_activate:
             play_melody()
         else:
             GPIO.output(BUZZER, GPIO.LOW)
+    
+    GPIO.output(BUZZER, GPIO.LOW)
 
 def play_melody():
     melody = [
         # First Verse
-        (GPIO.HIGH, 0.4),  # C
+        (GPIO.HIGH, 0.2),  # C
         (GPIO.LOW, 0.2),
-        (GPIO.HIGH, 0.4),  # C
-        (GPIO.LOW, 0.2),
+        #(GPIO.HIGH, 0.4),  # C
+        #(GPIO.LOW, 0.2),
         # (GPIO.HIGH, 0.4),  # G
         # (GPIO.LOW, 0.2),
         # (GPIO.HIGH, 0.4),  # G
@@ -265,7 +268,7 @@ def play_melody():
 
 def light_the_light():
     global light_status
-    while True:
+    while not stop_flag:
         if is_flashing:
             light_status = "On"
             # GPIO.HIGH means light is off and GPIO.LOW means light is on
@@ -284,6 +287,10 @@ def light_the_light():
             GPIO.output(RGB_RED, GPIO.HIGH)
             GPIO.output(RGB_GREEN, GPIO.HIGH)
             GPIO.output(RGB_BLUE, GPIO.HIGH)
+    
+    GPIO.output(RGB_RED, GPIO.HIGH)
+    GPIO.output(RGB_GREEN, GPIO.HIGH)
+    GPIO.output(RGB_BLUE, GPIO.HIGH)
 
 def potentiometerLogic():
     global max_heat
@@ -305,14 +312,25 @@ def lcd_display():
     screen = Screen(bus=1, addr=0x27, cols=16, rows=2)
     screen.enable_backlight()
 
-    while True:
+    while not stop_flag:
         temp_line = "Temp: {}/{}".format(round(current_heat,1), round(max_heat,1))
         light_line = "Light: {}".format(light_status)
         screen.display_data(temp_line, light_line)
         time.sleep(1)
 
+    screen.display_data("","")
+    screen.disable_backlight()
 
 def loop():
+    while True:
+        thermistorLogic()
+        photoresistorLogic()
+        potentiometerLogic()
+        time.sleep(0.2)
+
+if __name__ == '__main__':
+    init()
+
     GPIO.add_event_detect(RED_BUTTON, GPIO.FALLING, callback=alarm_status)
     GPIO.add_event_detect(BLUE_BUTTON, GPIO.FALLING, callback=alarm_status)
 
@@ -324,21 +342,15 @@ def loop():
 
     lcd_thread = threading.Thread(target=lcd_display)
     lcd_thread.start()
-
-    while True:
-        thermistorLogic()
-        photoresistorLogic()
-        potentiometerLogic()
-        time.sleep(0.2)
-
-if __name__ == '__main__':
-    init()
-
     try:
         loop()
-    except KeyboardInterrupt: 
+    except KeyboardInterrupt:
+        stop_flag = True 
+        alarm_thread.join()
+        led_thread.join()
+        lcd_thread.join()
         GPIO.cleanup()
-        ADC0832_1.destroy()
-        ADC0832_2.destroy()
+        #ADC0832_1.destroy()
+        #ADC0832_2.destroy()
         logging.info("Stopping...")
-        print ('The end !')
+        print ('\nThe end !')
