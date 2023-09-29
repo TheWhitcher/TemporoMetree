@@ -140,6 +140,9 @@ def thermistorLogic():
     res = ADC0832_1.getADC(1)
     Vr = 3.3 * float(res) / 255
 
+    if (Vr == 0):
+        Vr = 0.1
+
     Rt = (3.3 * 10000) / Vr - 10000
     if (Rt > 0):
         ln = math.log(Rt/R25)
@@ -157,7 +160,6 @@ def photoresistorLogic():
 
     res = ADC0832_2.getADC(1)
     vol = 3.3/255 * res
-
     if (vol <= (3.3/2)):
         is_flashing = True
     else:
@@ -275,22 +277,18 @@ def light_the_light():
             GPIO.output(RGB_RED, GPIO.LOW)
             GPIO.output(RGB_GREEN, GPIO.HIGH)
             GPIO.output(RGB_BLUE, GPIO.HIGH)
-            time.sleep(0.2)
+            time.sleep(0.1)
 
             GPIO.output(RGB_RED, GPIO.HIGH)
             GPIO.output(RGB_GREEN, GPIO.HIGH)
             GPIO.output(RGB_BLUE, GPIO.LOW)
 
-            time.sleep(0.2)
+            time.sleep(0.1)
         else:
             light_status = "Off"
             GPIO.output(RGB_RED, GPIO.HIGH)
             GPIO.output(RGB_GREEN, GPIO.HIGH)
             GPIO.output(RGB_BLUE, GPIO.HIGH)
-    
-    GPIO.output(RGB_RED, GPIO.HIGH)
-    GPIO.output(RGB_GREEN, GPIO.HIGH)
-    GPIO.output(RGB_BLUE, GPIO.HIGH)
 
 def potentiometerLogic():
     global max_heat
@@ -300,6 +298,9 @@ def potentiometerLogic():
 
     res = ADC0832_2.getADC(0)
     Vr = 3.3 * float(res) / 255
+
+    if (Vr == 0):
+        Vr = 0.1
 
     Rt = (3.3 * 10000) / Vr - 10000
     if (Rt > 0):
@@ -316,7 +317,7 @@ def lcd_display():
         temp_line = "Temp: {}/{}".format(round(current_heat,1), round(max_heat,1))
         light_line = "Light: {}".format(light_status)
         screen.display_data(temp_line, light_line)
-        time.sleep(1)
+        time.sleep(0.2)
 
     screen.display_data("","")
     screen.disable_backlight()
